@@ -1,0 +1,40 @@
+ __  __       _           __  _  _         ____       _     _
+|  \/  | __ _| | __ ___  / _|(_)| | ___   / ___|_   _(_) __| | ___
+| |\/| |/ _` | |/ // _ \| |_ | || |/ _ \ | |  _| | | | |/ _` |/ _ \
+| |  | | (_| |   <|  __/|  _|| || |  __/ | |_| | |_| | | (_| |  __/
+|_|  |_|\__,_|_|\_\\___||_|  |_||_|\___|  \____|\__,_|_|\__,_|\___|
+
+
+If you prefer to work directly on the command line, this guide will give you a
+few simple steps to get started.  Note that the Mac example code has not been
+tested for Linux, but should require only minimal changes.  See the 
+"linux-notes.txt" file for more information.
+
+1. First, unzip the example project somewhere convenient.  For the sake of
+   the example we'll use ~/workspace
+
+2. Using your favorite terminal emulator, change the directory to the project
+   you just unzipped:
+
+   `cd ~/workspace/Mac-OpenGL-Example`
+
+3. Look through the files.  The headers from the textbook code have been
+   separated out for you.
+
+4. Enter the "SimpleProgram" directory.
+
+   `cd SimpleProgram`
+
+5. Try the Makefile.  In addition to compiling, we have also provided a simple
+   makefile target for removing build files.
+
+   `make`
+   `make clean`
+
+6. Try running the executable.  By default, the makefile produces an executable
+   named "prog".
+
+   `./prog`
+
+7. Go on and explore.  The Makefile we've provided is rather simple, so don't
+   hesitate to change it and add to it.
