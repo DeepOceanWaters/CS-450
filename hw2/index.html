@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Piano Scales/Chords</title>
+
+	<link rel="stylesheet" type="text/css" href="webgl/css/bootstrap.css" />
+	<link rel="stylesheet" type="text/css" href="webgl/css/cs450-hw.css" />
+	<script type="text/javascript" src="webgl/js/jquery-2.1.1.js"></script>
+	<script type="text/javascript" src="webgl/js/bootstrap.js"></script>
+	<script type="text/javascript" src="webgl/js/glMatrix-0.9.5.min.js"></script>
+	<script type="text/javascript" src="webgl/js/webgl-utils.js"></script>
+	<script type="text/javascript" src="webgl/js/piano.js"></script>
+	<script id="shader-fs" type="x-shader/x-fragment">
+   		precision mediump float;
+
+   		varying vec4 vColor;
+
+   		void main(void) {
+   		    gl_FragColor = vColor;
+    	}
+	</script>
+	
+	<script id="shader-vs" type="x-shader/x-vertex">
+	    attribute vec3 aVertexPosition;
+	    attribute vec4 aVertexColor;
+	
+	    uniform mat4 uMVMatrix;
+	    uniform mat4 uPMatrix;
+	
+	    varying vec4 vColor;
+	
+	    void main(void) {
+	        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+	        vColor = aVertexColor;
+	    }
+	</script>
+</head>
+<body>
+<div class="container-fluid">
+	<div class="row">
+		<div class="col-md-3"></div>
+		<div class="container col-md-4">
+				<div class="panel panel-default">
+				  	<div class="panel-heading">
+				    	<h3 class="panel-title">CS 450: Homework 1</h3>
+				  	</div>
+				  	<div class="panel-body">
+				    	<canvas id="hw1-canvas" width="600" height="600"></canvas>
+				  	</div>
+			</div>
+		</div>
+		<div class="col-md-5"></div>
+	</div>
+	<div class="row">
+		<div class="col-md-3"></div>
+		<div class="col-md-6">
+			
+		</div>
+		<div class="col-md-3"></div>
+	</div>
+</div>
+</body>
+</html>
