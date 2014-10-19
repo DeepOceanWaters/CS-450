@@ -8,32 +8,36 @@ function handleFileSelect(evt) {
 
     // files is a FileList of File objects. List some properties.
     for (var i = 0, f; f = files[i]; i++) {
-        html = $.parseHTML('<li class="pill"><a href="#">' + escape(f.name) + ' (' + f.type + 'n/a) - '
-                  + f.size + ' bytes, last modified: '
-                  + (f.lastModifiedDate ? f.lastModifiedDate.toLocaleDateString() : 'n/a')
-                  + '</a></li>');
+        html = $.parseHTML('<li class="pill"><a href="#">' + escape(f.name) + '</a></li>');
         $('#list').append(html);
     }
-    $('#list').find('.pill').each(function(i, child) {
-        $(child).on("click", function() {
-            $(child).toggleClass('active');
-            selected.toggleClass('active');
-            selected = $(child);
-            return false;
-        });
-        selected = $(child);
-    });
+    if(selected !== undefined && selected !== null) {
+        selected.toggleClass('active');
+    }
+    $('#list').find('.pill').each(setNavHandle);
     selected.toggleClass('active');
 }
 
-function handleNavClick(evt) {
-    
+function setNavHandle(i, child) {
+    $(child).off();
+    $(child).on("click", handleNavClick);
+    selected = $(child);
 }
 
-function handleDragOver(evt) {
-  evt.stopPropagation();
-  evt.preventDefault();
-  evt.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
+function handleNavClick(event) {
+    var filePill = $(this);
+    filePill.toggleClass('active');
+    selected.toggleClass('active');
+    selected = filePill;
+    event.stopPropagation();
+    event.preventDefault();
+    return false;
+}
+
+function handleDragOver(event) {
+  event.stopPropagation();
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
 }
 
 var gl;
