@@ -1,0 +1,6 @@
+<ul id="list" class="nav nav-pills nav-stacked" ng-repeat="file in files">
+    <li class="pill" ng-class="{active: file.isSelected}"
+     ng-click="handleClick($event, file)">
+        <a href="#">{{ file.name }}</a>
+    </li>
+</ul>
