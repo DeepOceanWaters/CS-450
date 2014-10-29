@@ -1,27 +1,7 @@
 var app = angular.module('myapp', [
-    'ngRoute',
-    'homeworkControllers', 
     'FileController',
     'CanvasController',
     'FileService']);
-
-app.config(['$routeProvider', function($routeProvider) {
-    $routeProvider.when('/hw1', {
-        templateUrl: 'partials/hw1.html',
-        controller: 'HomeworkOneCtrl'
-    }).
-    otherwise({
-       redirectTo: '/hw1' 
-    });
-}]);
-
-app.directive('helloWorld', function() {
-  return {
-      restrict: 'AE',
-      replace: 'true',
-      templateUrl: './js/angular/helloWorld.html'
-  };
-});
 
 app.directive('fileDrop', function() {
   return {
@@ -47,5 +27,5 @@ app.directive('dropZone', function() {
             el.addEventListener('dragover', scope.handleDrag, false);
             el.addEventListener('drop', scope.handleDrop, false);
         }
-    }; 
+    };
 });

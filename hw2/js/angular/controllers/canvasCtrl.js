@@ -1,30 +1,81 @@
 var canvasCtrl = angular.module('CanvasController', []);
 
-canvasCtrl.controller('CanvasCtrl', ['$scope', '$http',
+canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService',
     function ($scope, $http, fileService) {
+        // When a file is selected or deselected, redraw the scene.
+        $scope.$on('selectedFilesChange', drawScene);
+
         $(document).ready(function(){
             webGLStart();
         });
-        var gl;
 
+        var CONSTANTS = {
+            // SN = shader name
+            SN_POSITION:"vPosition",
+            SN_NORMAL:"vNormal",
+            SN_PROJECTION:"Projection",
+            SN_MODEL_VIEW:"ModelView",
+            SN_AMBIENT:"AmbientProduct",
+            SN_DIFFUSE:"DiffuseProduct",
+            SN_SPECULAR:"SpecularProduct",
+            SN_LIGHT_POSITION:"LightPosition",
+            SN_SHININESS:"Shininess"
+        };
+
+        // Shader values for light
+        var LIGHT = {
+            position:[1.5, 1.5, 2.0, 1.0],
+            ambient:[1.0, 0.0, 1.0, 1.0],
+            diffuse:[1.0, 1.0, 1.0, 1.0],
+            specular:[1.0, 1.0, 1.0, 1.0]
+        };
+
+        // Shader values for material
+        var MATERIAL = {
+            ambient:[0.2, 0.2, 0.2, 1.0],
+            diffuse:[1.0, 0.8, 0.0, 1.0],
+            specular:[1.0, 0.8, 0.0, 1.0],
+            shininess:100.0
+        };
+
+        var perspective = {
+            fovy:90,
+            ratio:1.0,
+            near:0.1,
+            far:4.0
+        };
+
+        var eye = [1.0, 0.0, 2.0];
+        var at = [0.0, 0.0, 0.0];
+        var up = [0.0, 1.0, 0.0];
+
+        var gl;
+        var shaderProgram;
+        var mvMatrixStack = [];
+        var mvMatrix = mat4.create();
+        var pMatrix = mat4.create();
+
+        /**
+         * Initializes the gl.
+         */
         function initGL(canvas) {
-            if (window.File && window.FileReader && window.FileList && window.Blob) {
-                //alert('Can read files!');
-            } else {
-                alert('The File APIs are not fully supported by your browser.');
-            }
             resize();
             try {
                 gl = canvas.getContext("experimental-webgl");
                 gl.viewportWidth = canvas.width;
                 gl.viewportHeight = canvas.height;
             } catch (e) {
+
             }
             if (!gl) {
                 alert("Could not initialise WebGL, sorry :-(");
             }
         }
 
+        /**
+         * Sets the width and height of the canvas to
+         * the width of the wrapping element.
+         */
         function resize() {
             var canvas = $('#hw1-canvas');
             var parentWidth = canvas.parent().width();
@@ -34,8 +85,10 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http',
             canvas.attr('height', parentWidth);
         }
 
-
-        function getShader(gl, id) {
+        /**
+         * gets the shader with the given id
+         */
+        function getShader(id) {
             var shaderScript = document.getElementById(id);
             if (!shaderScript) {
                 return null;
@@ -70,12 +123,12 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http',
             return shader;
         }
 
-
-        var shaderProgram;
-
+        /**
+         * Initialize shaders
+         */
         function initShaders() {
-            var fragmentShader = getShader(gl, "shader-fs");
-            var vertexShader = getShader(gl, "shader-vs");
+            var fragmentShader = getShader("shader-fs");
+            var vertexShader = getShader("shader-vs");
 
             shaderProgram = gl.createProgram();
             gl.attachShader(shaderProgram, vertexShader);
@@ -88,27 +141,35 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http',
 
             gl.useProgram(shaderProgram);
 
-            shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
-            gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+            shaderProgram.vPositionAttr = gl.getAttribLocation(shaderProgram, CONSTANTS.SN_POSITION);
+            gl.enableVertexAttribArray(shaderProgram.vPositionAttr);
 
-            shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
-            gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
+            shaderProgram.vNormalsAttr = gl.getAttribLocation(shaderProgram, CONSTANTS.SN_NORMAL);
+            gl.enableVertexAttribArray(shaderProgram.vNormalsAttr);
 
-            shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
-            shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+            shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_PROJECTION);
+            shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_MODEL_VIEW);
+            shaderProgram.ambient = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_AMBIENT);
+            shaderProgram.diffuse = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_DIFFUSE);
+            shaderProgram.specular = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_SPECULAR);
+            shaderProgram.lightPos = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_LIGHT_POSITION);
+            shaderProgram.shininess = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_SHININESS);
         }
 
-
-        var mvMatrix = mat4.create();
-        var mvMatrixStack = [];
-        var pMatrix = mat4.create();
-
+        /**
+         * Add a copy of the current mvMatrix
+         * to the top of the mvMatrix stack.
+         */
         function mvPushMatrix() {
             var copy = mat4.create();
-            mat4.set(mvMatrix, copy);
+            mat4.copy(copy, mvMatrix);
             mvMatrixStack.push(copy);
         }
 
+        /**
+         * Copy the top element in the mvMatrix stack
+         * into mvMatrix and remove it from the stack.
+         */
         function mvPopMatrix() {
             if (mvMatrixStack.length == 0) {
                 throw "Invalid popMatrix!";
@@ -116,174 +177,109 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http',
             mvMatrix = mvMatrixStack.pop();
         }
 
+        /**
+         * @v1 = vector of @size
+         * @v2 = vector of @size
+         * @size = size of vector
+         *
+         * Multiplies v1 and v2 such that the
+         * output vOut = [v1[0] * v2[0], v1[1] * v2[1], ..., v1[n-1] * v2[n-1]]
+         * @return = v1 * v2
+         */
+        function multVecs(v1, v2, size) {
+            var newVec = new Array();
+            for(var i = 0; i < size; i++) {
+                newVec.push(v1[i] * v2[i]);
+            }
+            return newVec;
+        }
 
+        /**
+         * Sets the shader uniform variables
+         */
         function setMatrixUniforms() {
             gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
             gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+            gl.uniform4fv(shaderProgram.lightPos, LIGHT.position);
+            var ambientProduct = multVecs(LIGHT.ambient, MATERIAL.ambient, 4);
+            var diffuseProduct = multVecs(LIGHT.diffuse, MATERIAL.diffuse, 4);
+            var specularProduct = multVecs(LIGHT.specular, MATERIAL.specular, 4);
+            gl.uniform4fv(shaderProgram.ambient, ambientProduct);
+            gl.uniform4fv(shaderProgram.diffuse, diffuseProduct);
+            gl.uniform4fv(shaderProgram.specular, specularProduct);
+            gl.uniform1f(shaderProgram.shininess,  MATERIAL.shininess);
         }
 
-
-        function initBuffers() {
-            initKeys();
+        /**
+         * Create buffers for the file object and
+         * buffer the data in the file object.
+         */
+        function bufferFileObj(file) {
+            file.obj.vertices.buffer = gl.createBuffer();
+            file.obj.normals.buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, file.obj.vertices.buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(file.obj.vertices), gl.STATIC_DRAW);
+            gl.bindBuffer(gl.ARRAY_BUFFER, file.obj.normals.buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(file.obj.normals), gl.STATIC_DRAW);
         }
 
-        var piano = {};
-        piano.BLACK_KEY = {};
-        piano.BLACK_KEY.COLOR = [0.0, 0.0, 0.0, 1.0];
-        piano.BLACK_KEY.YL = 1.1;
-        piano.BLACK_KEY.YH = 2.9;
-        piano.BLACK_KEY.Z  = 0.1;
-        piano.WHITE_KEY = {};
-        piano.WHITE_KEY.COLOR = [1.0, 1.0, 1.0, 1.0];
-        piano.WHITE_KEY.YL = 0.1;
-        piano.WHITE_KEY.YH = 2.9;
-        piano.WHITE_KEY.Z  = 0.0;
-
-        function initKeys() {
-            var keyOffset = -1.0;
-            piano.keys = [];
-            for(var i = 0; i < 36; i++) {
-                initKey(i);
-                keyOffset = initKeyVertices(piano.keys[i], keyOffset);
-                initKeyColors(piano.keys[i]);
-            }
-        }
-
-        function initKey(pos) {
-            var key;
-            key = {};
-            key.vBuffer = gl.createBuffer();
-            key.cBuffer = gl.createBuffer();
-            key.localPos = pos % 12;
-            key.pos = pos;
-            key.isBlack = isBlackKey(key);
-            piano.keys[pos] = key;
-        }
-
-        function initKeyVertices(key, keyOffset) {
-            var vertices;
-            var xh;
-            var xl;
-            var yh;
-            var yl;
-            var z;
-    
-            keyOffset += getOffset(key);
-            xh = keyOffset + 0.9;
-            xl = keyOffset + 0.1;
-
-            if(key.isBlack) {
-                yl = piano.BLACK_KEY.YL;
-                yh = piano.BLACK_KEY.YH;
-                z = piano.BLACK_KEY.Z;
-            }
-            else {
-                yl = piano.WHITE_KEY.YL;
-                yh = piano.WHITE_KEY.YH;
-                z = piano.WHITE_KEY.Z;
-            }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, key.vBuffer);
-            vertices = [
-                    xl, yl, z,
-                    xl, yh, z,
-                    xh, yl, z,
-                    xh, yh, z
-                ];
-
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-            key.vBuffer.itemSize = 3;
-            key.vBuffer.numItems = 4;
-
-            return keyOffset;
-        }
-
-        function getOffset(key) {
-            if(key.localPos == 0 || key.localPos == 5) {
-                return 1.0;
-            }
-            else {
-                return 0.5;
-            }
-        }
-
-        function isBlackKey(key) {
-            switch(key.pos % 12) {
-                case 1:
-                case 3:
-                case 6:
-                case 8:
-                case 10:
-                    return true;
-                    break;
-                default:
-                    return false;
-                    break;
-            }
-        }
-
-        function initKeyColors(key) {
-            var colors = [];
-            var color;
-
-            color = key.isBlack? piano.BLACK_KEY.COLOR : piano.WHITE_KEY.COLOR;
-
-    
-            gl.bindBuffer(gl.ARRAY_BUFFER, key.cBuffer);
-            for (var i=0; i < 4; i++) {
-                colors = colors.concat(color);
-            }
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-            key.cBuffer.itemSize = 4;
-            key.cBuffer.numItems = 4;
-        }
-
-
-
-
+        /**
+         * Draws the scene. Gets selected files and then draws them.
+         */
         function drawScene() {
+            var files = fileService.getSelectedFiles();
+            for(var i = 0; i < files.length; i++) {
+                bufferFileObj(files[i]);
+            }
+
             gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-
-            mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 1000.0, pMatrix);
-
             mat4.identity(mvMatrix);
+            mat4.perspective(
+                pMatrix,
+                perspective.fovy,
+                perspective.ratio,
+                perspective.near,
+                perspective.far
+            );
+            mat4.lookAt(mvMatrix, eye, at, up);
 
-            mat4.translate(mvMatrix, [-10.5, 0.0, -30.0]);
-            $(piano.keys).each(draw);
+            for(var i = 0; i < files.length; i++) {
+                drawFileObj(files[i].obj);
+            }
         }
 
-        function draw(index, key) {
+        /**
+         * Draws a file object.
+         */
+        function drawFileObj(fileObj) {
             mvPushMatrix();
-            mat4.translate(mvMatrix, [0.0, 0.0, 0.0]);
-            gl.bindBuffer(gl.ARRAY_BUFFER, key.vBuffer);
-            gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, key.vBuffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.bindBuffer(gl.ARRAY_BUFFER, fileObj.vertices.buffer);
+            gl.vertexAttribPointer(shaderProgram.vPositionAttr, 3, gl.FLOAT, false, 0, 0);
 
-            gl.bindBuffer(gl.ARRAY_BUFFER, key.cBuffer);
-            gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, key.cBuffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.bindBuffer(gl.ARRAY_BUFFER, fileObj.normals.buffer);
+            gl.vertexAttribPointer(shaderProgram.vNormalsAttr, 3, gl.FLOAT, false, 0, 0);
 
             setMatrixUniforms();
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, key.vBuffer.numItems);
+            gl.drawArrays(gl.TRIANGLES, 0, fileObj.numVertices);
 
             mvPopMatrix();
         }
 
+        /**
+         * Start WebGL. Called on document.ready(). Draws the blank
+         * scene. This is because element containing the canvas will
+         * not be properly sized until the scene is drawn.
+         */
         function webGLStart() {
             var canvas = document.getElementById("hw1-canvas");
             initGL(canvas);
             initShaders()
-            initBuffers();
 
-            gl.clearColor(0.2, 0.2, 0.2, 1.0);
+            gl.clearColor(0.7, 0.7, 0.7, 1.0);
             gl.enable(gl.DEPTH_TEST);
-            drawScene();
-        }
-
-        function setSize() {
-            alert('STUFF!');
-            $('#hw1-canvas').attr('width', $(window).width());
-            $('#hw1-canvas').attr('height', $(window).height());
+            resize();
             drawScene();
         }
     }

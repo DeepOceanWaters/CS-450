@@ -2,34 +2,38 @@ var fileCtrl = angular.module('FileController', []);
 
 fileCtrl.controller('FileCtrl', ['$scope', '$http', 'fileService',
     function ($scope, $http, fileService) {
+        if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
+            alert('The File APIs are not fully supported by your browser.');
+        }
+
         $scope.handleClick = function(event, file) {
             fileService.toggleSelect(file);
         }
-        
+
         $scope.handleDrag = function(event) {
             event.stopPropagation();
             event.preventDefault();
             event.dataTransfer.dropEffect = 'copy';
         }
-        
+
         $scope.handleDrop = function(event) {
             event.stopPropagation();
             event.preventDefault();
             var files = event.dataTransfer.files; // FileList object.
-          
+
             // files is a FileList of File objects. List some properties.
             for (var i = 0, f; f = files[i]; i++) {
                 fileService.addNewFile(f);
             }
         }
-        
+
         var updateFiles = function(event, data) {
             $scope.files = fileService.getFiles();
             $scope.$apply();
         }
-        
+
         $scope.$on('updateFiles', updateFiles);
-        
+
         /*
         var processFaceLine = function(lineElement) {
             var splitLine = lineElement.split('/');
@@ -39,7 +43,7 @@ fileCtrl.controller('FileCtrl', ['$scope', '$http', 'fileService',
                 parseInt(splitLine[2])   // normal
             ];
         }
-        
+
         var processLine = function(file, line) {
             var lineElements = line.trim().split(' ');
             switch(lineElements[0]) {
@@ -47,21 +51,21 @@ fileCtrl.controller('FileCtrl', ['$scope', '$http', 'fileService',
                 break;
             case  'v': // vertex
                 file.v.push([
-                    parseFloat(lineElements[1]), 
-                    parseFloat(lineElements[2]), 
+                    parseFloat(lineElements[1]),
+                    parseFloat(lineElements[2]),
                     parseFloat(lineElements[3])
                 ]);
                 break;
             case 'vt': // texture coord
                 file.vt.push([
-                    parseFloat(lineElements[1]), 
+                    parseFloat(lineElements[1]),
                     parseFloat(lineElements[2])
                 ]);
                 break;
             case 'vn': // normal
                 file.vn.push([
-                    parseFloat(lineElements[1]), 
-                    parseFloat(lineElements[2]), 
+                    parseFloat(lineElements[1]),
+                    parseFloat(lineElements[2]),
                     parseFloat(lineElements[3])
                 ]);
                 break;
@@ -76,7 +80,7 @@ fileCtrl.controller('FileCtrl', ['$scope', '$http', 'fileService',
                 break;
             }
         }
-        
+
         var processData = function(fileData) {
             var file = {};
             file.v = new Array();
@@ -89,7 +93,7 @@ fileCtrl.controller('FileCtrl', ['$scope', '$http', 'fileService',
             }
             return file;
         }
-        
+
         var onloadHandler = function(event, fileDesc) {
             var fileData = event.target.result;
             var file = $scope.processData(fileData);
@@ -97,10 +101,10 @@ fileCtrl.controller('FileCtrl', ['$scope', '$http', 'fileService',
             $scope.files.push(file);
             $scope.$apply();
         }
-        
+
         var fileToObj = function(file) {
             var reader = new FileReader();
-            // Read file into memory as UTF-8      
+            // Read file into memory as UTF-8
             reader.readAsText(file);
             // Handle errors load
             reader.onload = (function(file){
