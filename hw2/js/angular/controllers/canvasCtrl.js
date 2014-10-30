@@ -1,9 +1,10 @@
 var canvasCtrl = angular.module('CanvasController', []);
 
-canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService',
-    function ($scope, $http, fileService) {
+canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewService',
+    function ($scope, $http, fileService, viewService) {
         // When a file is selected or deselected, redraw the scene.
         $scope.$on('selectedFilesChange', drawScene);
+        $scope.$on('updateView', drawScene);
 
         $(document).ready(function(){
             webGLStart();
@@ -25,29 +26,18 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService',
         // Shader values for light
         var LIGHT = {
             position:[1.5, 1.5, 2.0, 1.0],
-            ambient:[1.0, 0.0, 1.0, 1.0],
+            ambient:[0.2, 0.2, 0.2, 1.0],
             diffuse:[1.0, 1.0, 1.0, 1.0],
             specular:[1.0, 1.0, 1.0, 1.0]
         };
 
         // Shader values for material
         var MATERIAL = {
-            ambient:[0.2, 0.2, 0.2, 1.0],
+            ambient:[1.0, 0.0, 1.0, 1.0],
             diffuse:[1.0, 0.8, 0.0, 1.0],
             specular:[1.0, 0.8, 0.0, 1.0],
             shininess:100.0
         };
-
-        var perspective = {
-            fovy:90,
-            ratio:1.0,
-            near:0.1,
-            far:4.0
-        };
-
-        var eye = [1.0, 0.0, 2.0];
-        var at = [0.0, 0.0, 0.0];
-        var up = [0.0, 1.0, 0.0];
 
         var gl;
         var shaderProgram;
@@ -235,18 +225,43 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService',
             gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+
+            var lookAt = viewService.getLookAtForWebGL();
+            setView();
             mat4.identity(mvMatrix);
-            mat4.perspective(
-                pMatrix,
-                perspective.fovy,
-                perspective.ratio,
-                perspective.near,
-                perspective.far
-            );
-            mat4.lookAt(mvMatrix, eye, at, up);
+            mat4.lookAt(mvMatrix, lookAt.eye, lookAt.at, lookAt.up);
 
             for(var i = 0; i < files.length; i++) {
                 drawFileObj(files[i].obj);
+            }
+        }
+
+        function setView() {
+            var view = viewService.getSelectedViewForWebGL();
+            switch(view.viewType) {
+                case 'Perspective':
+                    mat4.perspective(
+                        pMatrix,
+                        view.fovy,
+                        view.ratio,
+                        view.near,
+                        view.far
+                    );
+                    break;
+                case 'Orthographic':
+                    mat4.ortho(
+                        pMatrix,
+                        view.left,
+                        view.right,
+                        view.bottom,
+                        view.top,
+                        view.near,
+                        view.far
+                    );
+                    break;
+                default:
+                    alert('Unknown view type: ' + view.viewType + '\nView not set.');
+                    break;
             }
         }
 
@@ -265,6 +280,13 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService',
             gl.drawArrays(gl.TRIANGLES, 0, fileObj.numVertices);
 
             mvPopMatrix();
+        }
+
+        /**
+         * Updates the view parameters given the viewService.
+         */
+        function updateView() {
+
         }
 
         /**

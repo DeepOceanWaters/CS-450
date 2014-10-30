@@ -4,7 +4,7 @@ body {
 }
 
 .panel-body {
-	padding: 3px 2px 2px 2px; 
+	padding: 3px 2px 2px 2px;
 	line-height: 0;
 }
 
@@ -29,4 +29,81 @@ body {
     margin: 2px;
     text-align: center;
     vertical-align: middle;
+}
+
+.c-input-group > .c-input:last-child {
+	border-radius: 0px 4px 4px 0px;
+	border-right: 1px solid #C1C1C1
+}
+
+.c-input, .c-input-addon {
+	width: 35%;
+	font-size: 14px;
+	padding: 6px 12px;
+	border: 1px solid #C1C1C1;
+	border-right: none;
+	margin-left: -4px;
+	vertical-align: middle;
+	text-align: center;
+	display: table-cell;
+}
+
+.c-input-group .c-input-addon {
+	border-radius: 4px 0px 0px 4px;
+	background: #EEE;
+}
+
+.c-input-pair.c-vertical {
+	display: table-cell;
+}
+
+.c-input-pair.c-vertical > input,
+.c-input-pair.c-vertical > span {
+	margin-left: 0px;
+}
+
+.c-input-pair.c-vertical > input {
+	width: 100%;
+}
+
+.c-input-pair.c-vertical .c-input-addon {
+	border-radius: 0px;
+}
+
+.c-input-pair.c-vertical .c-input {
+	border-radius: 0px;
+}
+
+.c-input-pair.c-vertical .c-input-addon {
+	border-bottom: none;
+}
+
+.c-input-group {
+	display: table;
+	margin-bottom: 10px;
+}
+
+.c-input {
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.075) inset;
+}
+
+.c-input:focus {
+	border-bottom: 1px solid #66afe9;
+	box-shadow: 0 -3px 3px -2px rgba(102, 175, 233, 0.6) inset, 0 1px 1px rgba(0, 0, 0, 0.075) inset;
+}
+
+.c-input-group > .c-input-pair.c-vertical:last-child > .c-input {
+	border-radius: 0px 0px 4px 0px;
+}
+
+.c-input-group > .c-input-pair.c-vertical:last-child > .c-input-addon {
+	border-radius: 0px 4px 0px 0px;
+}
+
+.c-input-group > .c-input-pair.c-vertical:first-child > .c-input {
+	border-radius: 0px 0px 0px 4px;
+}
+
+.c-input-group > .c-input-pair.c-vertical:first-child > .c-input-addon {
+	border-radius: 4px 0px 0px 0px;
 }

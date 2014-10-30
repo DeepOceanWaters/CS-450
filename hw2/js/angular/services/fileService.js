@@ -58,7 +58,7 @@ fileService.service('fileService', ['$rootScope',
                 var face = file.f[i];
                 for(var j = 0; j < 3; j++) {
                     fileObj.vertices.push(file.v[face[j][0] - 1]);
-                    fileObj.normals.push(file.v[face[j][2] - 1]);
+                    fileObj.normals.push(file.vn[face[j][2] - 1]);
                 }
             }
             fileObj.numVertices = file.f.length * 3;
@@ -67,7 +67,7 @@ fileService.service('fileService', ['$rootScope',
             return fileObj;
         }
 
-        //
+
         var addNewFile = function(file) {
             var reader = new FileReader();
             // Read file into memory as UTF-8
@@ -106,7 +106,7 @@ fileService.service('fileService', ['$rootScope',
         var parseProperFloat = function(floatStr) {
             var properFloat = parseFloat(floatStr);
             if(properFloat == -0) {
-                properFloat = parseFloat(0);
+                properFloat = parseFloat(0.0);
             }
             return properFloat;
         }
