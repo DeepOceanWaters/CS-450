@@ -8,6 +8,10 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
 
         $(document).ready(function(){
             webGLStart();
+            $(window).resize(function() {
+                resize();
+                drawScene();
+            });
         });
 
         var CONSTANTS = {
@@ -280,13 +284,6 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             gl.drawArrays(gl.TRIANGLES, 0, fileObj.numVertices);
 
             mvPopMatrix();
-        }
-
-        /**
-         * Updates the view parameters given the viewService.
-         */
-        function updateView() {
-
         }
 
         /**
