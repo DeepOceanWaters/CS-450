@@ -1,4 +1,6 @@
 <div class="c-input-group">
     <span class="c-input-addon">{{ param.name }}</span>
-    <input type="text" class="c-input" ng-model="axis.value" ng-change="redraw(event)" placeholder="{{ axis.name }}" ng-repeat="axis in param.axes">
+    <div class="c-input-wrapper" ng-repeat="axis in param.axes">
+    	<input type="text" class="c-input" ng-model="axis.value" ng-change="redraw(event)" placeholder="{{ axis.name }}">
+    </div>
 </div>
