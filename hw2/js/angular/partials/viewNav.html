@@ -1,0 +1,6 @@
+<ul class="nav nav-pills">
+    <li class="pill" ng-class="{active: view.isSelected}"
+     ng-click="handleViewClick($event, view)" ng-repeat="view in views">
+        <a href="#">{{ view.name }}</a>
+    </li>
+</ul>

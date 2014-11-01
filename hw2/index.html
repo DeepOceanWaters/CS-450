@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>CS 450: HW2</title>
+
+	<link rel="stylesheet" type="text/css" href="css/bootstrap.css"/>
+	<link rel="stylesheet" type="text/css" href="css/cs450-hw.css"/>
+    <script type="text/javascript" src="js/jquery.js"></script>
+  	<script type="text/javascript" src="js/bootstrap.js"></script>
+  	<script type="text/javascript" src="js/gl-matrix-min.js"></script>
+  	<script type="text/javascript" src="js/webgl-utils.js"></script>
+    <script type="text/javascript" src="js/angular.js"></script>
+	<script type="text/javascript" src="js/angular/services/viewService.js"></script>
+    <script type="text/javascript" src="js/angular/services/fileService.js"></script>
+	<script type="text/javascript" src="js/angular/controllers/viewCtrl.js"></script>
+    <script type="text/javascript" src="js/angular/controllers/fileCtrl.js"></script>
+    <script type="text/javascript" src="js/angular/controllers/canvasCtrl.js"></script>
+    <script type="text/javascript" src="js/angular/app.js"></script>
+  	<script id="shader-fs" type="x-shader/x-fragment">
+     	precision mediump float;
+
+     	varying vec4 color;
+
+     	void main(void) {
+     	    gl_FragColor = color;
+      	}
+  	</script>
+
+  	<script id="shader-vs" type="x-shader/x-vertex">
+        attribute  vec3 vPosition;
+        attribute  vec3 vNormal;
+        //attribute  vec4 vColor;
+
+		varying vec4 color;
+        uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
+        uniform mat4 ModelView;
+        uniform mat4 Projection;
+        uniform vec4 LightPosition;
+        uniform float Shininess;
+
+        void main()
+        {
+			//gl_Position = Projection * ModelView * vec4(vPosition, 1.0);
+			vec4 position = vec4(vPosition, 1.0);
+			vec4 normal = vec4(vNormal, 0.0);
+            // Transform vertex  position into eye coordinates
+            vec3 pos = (ModelView * position).xyz;
+            vec3 L = normalize( (ModelView * LightPosition).xyz - pos );
+            vec3 E = normalize( -pos );
+            vec3 H = normalize( L + E );  //halfway vector
+
+            // Transform vertex normal into eye coordinates
+            vec3 N = normalize( ModelView * normal ).xyz;
+
+            //To correctly transform normals
+            //vec3 N = (normalize(transpose(inverse(ModelView))*normal).xyz
+
+            // Compute terms in the illumination equation
+            vec4 ambient = AmbientProduct;
+
+            float dr = max( dot(L, N), 0.0 );
+            vec4  diffuse = dr *DiffuseProduct;
+
+            float sr = pow( max(dot(N, H), 0.0), Shininess );
+            vec4  specular = sr * SpecularProduct;
+
+            if( dot(L, N) < 0.0 ) {
+        	      specular = vec4(0.0, 0.0, 0.0, 1.0);
+            }
+
+            gl_Position = Projection * ModelView * position;
+
+            color = ambient + diffuse + specular;
+            color.a = 1.0;
+        }
+  	</script>
+</head>
+<body ng-app="myapp">
+<div class="container-fluid">
+	<div class="row">
+		<div class="col-md-3"></div>
+		<div class="col-md-5">
+			<div class="panel panel-default">
+			  	<div class="panel-heading">
+			    	<h3 class="panel-title">CS 450: Homework 2</h3>
+			  	</div>
+			  	<div class="panel-body" ng-controller="CanvasCtrl">
+			    	<canvas id="hw1-canvas" width="600" height="600"></canvas>
+			  	</div>
+			</div>
+		</div>
+		<div class="col-md-3" ng-controller="FileCtrl">
+            <file-drop></file-drop>
+            <file-list></file-list>
+			<div ng-controller="ViewCtrl">
+				<view-nav></view-nav>
+				<view-select></view-select>
+				<look-at></look-at>
+			</div>
+		</div>
+        <div class="col-md-1"></div>
+	</div>
+	<div class="row">
+		<div class="col-md-3"></div>
+		<div class="col-md-6">
+
+		</div>
+		<div class="col-md-3"></div>
+	</div>
+</div>
+</body>
+</html>
