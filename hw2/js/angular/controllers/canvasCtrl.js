@@ -7,7 +7,8 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
         $scope.$on('updateView', drawSceneDummy);
         var mouse = {
                 x:0,
-                y:0
+                y:0,
+                clicked:false
             };
 
         $(document).ready(function(){
@@ -15,12 +16,14 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             
             $(window).resize(function() {
                 resize();
-                drawScene();
             });
             $('#hw1-canvas').mousemove(function(event) {
                 var parentOffset = $(this).parent().offset();
                 mouse.x = Math.round(event.pageX - parentOffset.left);
                 mouse.y = $(this).attr('height') - Math.round(event.pageY - parentOffset.top);
+            });
+            $('#hw1-canvas').click(function(event) {
+                mouse.clicked = !mouse.clicked;
             });
         });
 
@@ -39,7 +42,8 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             SN_SHININESS:"Shininess",
             SN_OFF_SCREEN:"OffScreen",
             SN_PICKING_COLOR:"PickingColor",
-            SN_PICKED:"Picked"
+            SN_PICKED:"Picked",
+            UNUSED_COLOR_ID:new Uint8Array([0, 0, 0, 255])
         };
 
         // Shader values for light
@@ -64,6 +68,7 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
         var mvMatrix = mat4.create();
         var pMatrix = mat4.create();
 
+        var canvas;
         var canvasWidth;
         var canvasHeight;
 
@@ -170,6 +175,7 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             canvas.attr('width', parentWidth);
             canvas.height(parentWidth);
             canvas.attr('height', parentWidth);
+
         }
 
         /**
@@ -323,21 +329,26 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(file.obj.lineFaces), gl.STATIC_DRAW);
         }
 
-        function getMousePosition() {
-            glGetIntegerv(GL_VIEWPORT, viewport);
-        }
-
         /**
          * Draws the scene. Gets selected files and then draws them.
          */
         function drawScene() {
-            offScreen = true;
-            gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
-            draw();
-            gl.readPixels(mouse.x, mouse.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, colorPicked);
-            offScreen = false;
+            if (mouse.clicked) {
+                offScreen = true;
+                gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+                draw();
+                gl.readPixels(mouse.x, mouse.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, colorPicked);
+                offScreen = false;
+            }
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
             draw();
+            if (mouse.clicked) {
+                mouse.clicked = !mouse.clicked;
+                colorPicked[0] = 0;
+                colorPicked[1] = 0;
+                colorPicked[2] = 0;
+                colorPicked[3] = 255;
+            }
             requestAnimationFrame(drawScene);
         }
 
@@ -347,11 +358,9 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
                 bufferFileObj(files[i]);
             }
 
-            gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+            gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-
-            
             setView();
             mat4.identity(mvMatrix);
             var lookAt = viewService.getLookAtForWebGL();
@@ -403,6 +412,9 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             var elementBuffer = fileObj.faces.buffer;
             var sizeOfFaces = fileObj.faces.length;
             if(colorsAreEqual(fileObj.colorIdUint, colorPicked) && !offScreen) {
+                fileObj.isSelected = !fileObj.isSelected;
+            }
+            if(fileObj.isSelected && !offScreen) {
                 mode = gl.LINES;
                 elementBuffer = fileObj.lineFaces.buffer;
                 sizeOfFaces = fileObj.lineFaces.length;
@@ -430,7 +442,7 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
          * not be properly sized until the scene is drawn.
          */
         function webGLStart() {
-            var canvas = document.getElementById("hw1-canvas");
+            canvas = document.getElementById("hw1-canvas");
             initGL(canvas);
             initShaders()
             colorPicked = new Uint8Array(4);
@@ -438,7 +450,6 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             initPickingBuffer();
             gl.clearColor(0.7, 0.7, 0.7, 1.0);
             gl.enable(gl.DEPTH_TEST);
-            resize();
             drawScene();
         }
     }
