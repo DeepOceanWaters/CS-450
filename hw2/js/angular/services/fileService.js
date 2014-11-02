@@ -52,7 +52,8 @@ fileService.service('fileService', ['$rootScope',
             var fileObj = {
                 numVertices:0,
                 vertices:[],
-                normals:[]
+                normals:[],
+                faces:[]
             };
             for(var i = 0; i < file.f.length; i++) {
                 var face = file.f[i];
@@ -61,10 +62,30 @@ fileService.service('fileService', ['$rootScope',
                     fileObj.normals.push(file.vn[face[j][2] - 1]);
                 }
             }
-            fileObj.numVertices = file.f.length * 3;
-            fileObj.vertices = flatten(fileObj.vertices);
-            fileObj.normals = flatten(fileObj.normals);
+            var faces = flattenFaces(file.f);
+            fileObj.faces = faces[0];
+            fileObj.lineFaces = faces[1];
+            fileObj.numVertices = file.f.length;
+            fileObj.vertices = flatten(file.v);
+            fileObj.normals = flatten(file.vn);
             return fileObj;
+        }
+
+        var flattenFaces = function(faces) {
+            var flatLineFaces = new Array();
+            var flatFaces = new Array();
+            for(var i = 0; i < faces.length; i++) {
+                flatFaces.push(faces[i][0][0] - 1);
+                flatFaces.push(faces[i][1][0] - 1);
+                flatFaces.push(faces[i][2][0] - 1);
+                flatLineFaces.push(faces[i][0][0] - 1);
+                flatLineFaces.push(faces[i][1][0] - 1);
+                flatLineFaces.push(faces[i][1][0] - 1);
+                flatLineFaces.push(faces[i][2][0] - 1);
+                flatLineFaces.push(faces[i][2][0] - 1);
+                flatLineFaces.push(faces[i][0][0] - 1);
+            }
+            return [flatFaces, flatLineFaces];
         }
 
 
