@@ -315,6 +315,12 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(file.obj.vertices), gl.STATIC_DRAW);
             gl.bindBuffer(gl.ARRAY_BUFFER, file.obj.normals.buffer);
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(file.obj.normals), gl.STATIC_DRAW);
+            file.obj.faces.buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, file.obj.faces.buffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(file.obj.faces), gl.STATIC_DRAW);
+            file.obj.lineFaces.buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, file.obj.lineFaces.buffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(file.obj.lineFaces), gl.STATIC_DRAW);
         }
 
         function getMousePosition() {
@@ -393,7 +399,13 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
 
             currentColor = fileObj.colorId;
 
-            if(colorsAreEqual(fileObj.colorIdUint, colorPicked)) {
+            var mode = gl.TRIANGLES;
+            var elementBuffer = fileObj.faces.buffer;
+            var sizeOfFaces = fileObj.faces.length;
+            if(colorsAreEqual(fileObj.colorIdUint, colorPicked) && !offScreen) {
+                mode = gl.LINES;
+                elementBuffer = fileObj.lineFaces.buffer;
+                sizeOfFaces = fileObj.lineFaces.length;
                 picked = true;
             }
 
@@ -403,8 +415,9 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             gl.bindBuffer(gl.ARRAY_BUFFER, fileObj.normals.buffer);
             gl.vertexAttribPointer(shaderProgram.vNormalsAttr, 3, gl.FLOAT, false, 0, 0);
 
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementBuffer);
             setMatrixUniforms();
-            gl.drawArrays(gl.TRIANGLES, 0, fileObj.numVertices);
+            gl.drawElements(mode, sizeOfFaces, gl.UNSIGNED_SHORT, 0);
 
             picked = false;
 
