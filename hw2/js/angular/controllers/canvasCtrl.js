@@ -3,17 +3,29 @@ var canvasCtrl = angular.module('CanvasController', []);
 canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewService',
     function ($scope, $http, fileService, viewService) {
         // When a file is selected or deselected, redraw the scene.
-        $scope.$on('selectedFilesChange', drawScene);
-        $scope.$on('updateView', drawScene);
+        $scope.$on('selectedFilesChange', drawSceneDummy);
+        $scope.$on('updateView', drawSceneDummy);
+        var mouse = {
+                x:0,
+                y:0
+            };
 
         $(document).ready(function(){
             webGLStart();
+            
             $(window).resize(function() {
                 resize();
                 drawScene();
             });
+            $('#hw1-canvas').mousemove(function(event) {
+                var parentOffset = $(this).parent().offset();
+                mouse.x = Math.round(event.pageX - parentOffset.left);
+                mouse.y = $(this).attr('height') - Math.round(event.pageY - parentOffset.top);
+            });
         });
 
+        $scope.pickedColor = [];
+        var drawSceneDummy = function() {};
         var CONSTANTS = {
             // SN = shader name
             SN_POSITION:"vPosition",
@@ -24,7 +36,10 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             SN_DIFFUSE:"DiffuseProduct",
             SN_SPECULAR:"SpecularProduct",
             SN_LIGHT_POSITION:"LightPosition",
-            SN_SHININESS:"Shininess"
+            SN_SHININESS:"Shininess",
+            SN_OFF_SCREEN:"OffScreen",
+            SN_PICKING_COLOR:"PickingColor",
+            SN_PICKED:"Picked"
         };
 
         // Shader values for light
@@ -48,6 +63,82 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
         var mvMatrixStack = [];
         var mvMatrix = mat4.create();
         var pMatrix = mat4.create();
+
+        var canvasWidth;
+        var canvasHeight;
+
+        var fb;
+        var colorTexture;
+        var depthBuffer;
+        var colorSequence;
+        var colorPicked;
+        var offScreen;
+        var currentColor;
+        var picked;
+
+
+        function colorsAreEqual(color1, color2) {
+            if (color1 === undefined || color1 === null || color2 === undefined || color2 === null) {
+                return false;
+            }
+            return color1[0] == color2[0] 
+                && color1[1] == color2[1]
+                && color1[2] == color2[2];
+        }
+
+        function setObjColorId(obj) {
+            if(obj.colorId !== undefined && obj.colorId !== null) {
+                return;
+            }
+            obj.colorIdUint = new Uint8Array(4);
+            obj.colorIdUint[0] = colorSequence % 256;
+            obj.colorIdUint[1] = Math.floor(colorSequence / 256) % 256;    
+            obj.colorIdUint[2] = Math.floor(colorSequence / (256 * 256)) % 256;     
+            obj.colorIdUint[3] = 255;
+            obj.colorId = new Array(4);
+            obj.colorId[0] = (colorSequence % 256) / 256;
+            obj.colorId[1] = (Math.floor(colorSequence / 256) % 256) / 256;    
+            obj.colorId[2] = (Math.floor(colorSequence / (256 * 256)) % 256) / 256;     
+            obj.colorId[3] = 1.0;
+            colorSequence += 1;
+        }
+
+        function initPickingBuffer() {
+            //Creates texture
+            colorTexture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, colorTexture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvasWidth, canvasHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            
+            //Creates framebuffer
+            fb = gl.createFramebuffer();
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorTexture, 0);
+            gl.bindTexture(gl.TEXTURE_2D, colorTexture);
+            gl.enable(gl.DEPTH_TEST);
+
+            // create renderbuffer
+            depthBuffer = gl.createRenderbuffer();
+            gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
+            
+            // allocate renderbuffer
+            gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, canvasWidth, canvasHeight);  
+            
+            // attach renderebuffer
+            gl.framebufferRenderbuffer(
+                gl.FRAMEBUFFER,
+                gl.DEPTH_ATTACHMENT,
+                gl.RENDERBUFFER,
+                depthBuffer
+            );
+            if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE) {
+                alert("this combination of attachments does not work");
+                return;
+            }
+        }
 
         /**
          * Initializes the gl.
@@ -73,6 +164,8 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
         function resize() {
             var canvas = $('#hw1-canvas');
             var parentWidth = canvas.parent().width();
+            canvasWidth = parentWidth;
+            canvasHeight = parentWidth;
             canvas.width(parentWidth);
             canvas.attr('width', parentWidth);
             canvas.height(parentWidth);
@@ -148,6 +241,9 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             shaderProgram.specular = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_SPECULAR);
             shaderProgram.lightPos = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_LIGHT_POSITION);
             shaderProgram.shininess = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_SHININESS);
+            shaderProgram.offScreen = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_OFF_SCREEN);
+            shaderProgram.pickingColor = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_PICKING_COLOR);
+            shaderProgram.picked = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_PICKED);
         }
 
         /**
@@ -202,6 +298,9 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             gl.uniform4fv(shaderProgram.diffuse, diffuseProduct);
             gl.uniform4fv(shaderProgram.specular, specularProduct);
             gl.uniform1f(shaderProgram.shininess,  MATERIAL.shininess);
+            gl.uniform1i(shaderProgram.offScreen, offScreen);
+            gl.uniform4fv(shaderProgram.pickingColor, currentColor);
+            gl.uniform1i(shaderProgram.picked, picked);
         }
 
         /**
@@ -209,6 +308,7 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
          * buffer the data in the file object.
          */
         function bufferFileObj(file) {
+            setObjColorId(file.obj);
             file.obj.vertices.buffer = gl.createBuffer();
             file.obj.normals.buffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, file.obj.vertices.buffer);
@@ -217,10 +317,25 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(file.obj.normals), gl.STATIC_DRAW);
         }
 
+        function getMousePosition() {
+            glGetIntegerv(GL_VIEWPORT, viewport);
+        }
+
         /**
          * Draws the scene. Gets selected files and then draws them.
          */
         function drawScene() {
+            offScreen = true;
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+            draw();
+            gl.readPixels(mouse.x, mouse.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, colorPicked);
+            offScreen = false;
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            draw();
+            requestAnimationFrame(drawScene);
+        }
+
+        function draw() {
             var files = fileService.getSelectedFiles();
             for(var i = 0; i < files.length; i++) {
                 bufferFileObj(files[i]);
@@ -230,9 +345,10 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 
-            var lookAt = viewService.getLookAtForWebGL();
+            
             setView();
             mat4.identity(mvMatrix);
+            var lookAt = viewService.getLookAtForWebGL();
             mat4.lookAt(mvMatrix, lookAt.eye, lookAt.at, lookAt.up);
 
             for(var i = 0; i < files.length; i++) {
@@ -274,6 +390,13 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
          */
         function drawFileObj(fileObj) {
             mvPushMatrix();
+
+            currentColor = fileObj.colorId;
+
+            if(colorsAreEqual(fileObj.colorIdUint, colorPicked)) {
+                picked = true;
+            }
+
             gl.bindBuffer(gl.ARRAY_BUFFER, fileObj.vertices.buffer);
             gl.vertexAttribPointer(shaderProgram.vPositionAttr, 3, gl.FLOAT, false, 0, 0);
 
@@ -282,6 +405,8 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
 
             setMatrixUniforms();
             gl.drawArrays(gl.TRIANGLES, 0, fileObj.numVertices);
+
+            picked = false;
 
             mvPopMatrix();
         }
@@ -295,7 +420,9 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             var canvas = document.getElementById("hw1-canvas");
             initGL(canvas);
             initShaders()
-
+            colorPicked = new Uint8Array(4);
+            colorSequence = 1;
+            initPickingBuffer();
             gl.clearColor(0.7, 0.7, 0.7, 1.0);
             gl.enable(gl.DEPTH_TEST);
             resize();

@@ -31,12 +31,15 @@
         attribute  vec3 vNormal;
         //attribute  vec4 vColor;
 
-		varying vec4 color;
+		    varying vec4 color;
         uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
         uniform mat4 ModelView;
         uniform mat4 Projection;
         uniform vec4 LightPosition;
         uniform float Shininess;
+        uniform bool OffScreen;
+        uniform bool Picked;
+        uniform vec4 PickingColor;
 
         void main()
         {
@@ -69,8 +72,13 @@
 
             gl_Position = Projection * ModelView * position;
 
-            color = ambient + diffuse + specular;
-            color.a = 1.0;
+            if (OffScreen || Picked) {
+                color = PickingColor;
+            }
+            else {
+                color = ambient + diffuse + specular;
+                color.a = 1.0;
+            }
         }
   	</script>
 </head>
@@ -79,11 +87,11 @@
 	<div class="row">
 		<div class="col-md-3"></div>
 		<div class="col-md-5">
-			<div class="panel panel-default">
+			<div class="panel panel-default" ng-controller="CanvasCtrl">
 			  	<div class="panel-heading">
 			    	<h3 class="panel-title">CS 450: Homework 2</h3>
 			  	</div>
-			  	<div class="panel-body" ng-controller="CanvasCtrl">
+			  	<div class="panel-body">
 			    	<canvas id="hw1-canvas" width="600" height="600"></canvas>
 			  	</div>
 			</div>
