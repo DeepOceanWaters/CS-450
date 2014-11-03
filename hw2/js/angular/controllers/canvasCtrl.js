@@ -33,24 +33,28 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             });
             $('#fullscreen').click(function(event) {
                 requestFullscreen(canvas);
-                resize();
+                //resize();
                 
             });
+            document.addEventListener('fullscreenchange', fullscreenChange);
             document.addEventListener('mozfullscreenchange', fullscreenChange);
+            document.addEventListener('webkitfullscreenchange', fullscreenChange);
         });
 
         var fullscreenChange = function() {
             if(document.mozFullScreen || document.webkitIsFullScreen) {
-                var rect = canvas.getBoundingClientRect();
+                isFullscreen = true;
+                var rect = $(window);
                 var canvasL = $(canvas);
-                canvasL.width(rect.width);
-                canvasL.height(rect.height);
-                canvasL.attr('width', rect.width);
-                canvasL.attr('height', rect.height);
+                canvasL.width(rect.width());
+                canvasL.height(rect.height());
+                canvasL.attr('width', rect.width());
+                canvasL.attr('height', rect.height());
                 canvasWidth = canvasL.width();
                 canvasHeight = canvasL.height();
             }
             else {
+                isFullscreen = false;
                 resize();
             }
         }
@@ -70,7 +74,7 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             }
         };
 
-        var isFullscreen;
+        var isFullscreen = false;
         $scope.pickedColor = [];
         var drawSceneDummy = function() {};
         var CONSTANTS = {
@@ -211,17 +215,22 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
          * the width of the wrapping element.
          */
         function resize() {
-            var canvas = $('#hw1-canvas');
-            var parentWidth = canvas.parent().width();
-            canvas.width(parentWidth);
-            canvas.height(parentWidth);
-            canvas.attr('width', parentWidth);
-            canvas.attr('height', parentWidth);
-            canvasWidth = canvas.width();
-            canvasHeight = canvas.height();
-            var fullscreen = $("#fullscreen");
-            fullscreen.css('top', 3 - canvas.height());
-            fullscreen.css('left', canvas.width() - fullscreen.width() - 3 - 26);
+            // Note: jQuery's resize event listener is triggered when
+            //  an element is given fullscreen (e.g. requestFullscreen()) in Chrome,
+            //  but not in Firefox.
+            if (!isFullscreen) {
+                var canvas = $('#hw1-canvas');
+                var parentWidth = canvas.parent().width();
+                canvas.width(parentWidth);
+                canvas.height(parentWidth);
+                canvas.attr('width', parentWidth);
+                canvas.attr('height', parentWidth);
+                canvasWidth = canvas.width();
+                canvasHeight = canvas.height();
+                var fullscreen = $("#fullscreen");
+                fullscreen.css('top', 3 - canvas.height());
+                fullscreen.css('left', canvas.width() - fullscreen.width() - 3 - 26);
+            }
             if (gl !== undefined && gl !== null) {
                 initPickingBuffer();
             }
