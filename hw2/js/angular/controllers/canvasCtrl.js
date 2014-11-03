@@ -18,15 +18,59 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
                 resize();
             });
             $('#hw1-canvas').mousemove(function(event) {
-                var parentOffset = $(this).parent().offset();
-                mouse.x = Math.round(event.pageX - parentOffset.left);
-                mouse.y = $(this).attr('height') - Math.round(event.pageY - parentOffset.top);
+                if (document.mozFullScreen || document.webkitIsFullScreen) {
+                    mouse.x = event.pageX;
+                    mouse.y = canvasHeight - event.pageY;
+                }
+                else {
+                    var parentOffset = $(this).parent().offset();
+                    mouse.x = Math.round(event.pageX - parentOffset.left);
+                    mouse.y = $(this).attr('height') - Math.round(event.pageY - parentOffset.top);
+                }
             });
             $('#hw1-canvas').click(function(event) {
                 mouse.clicked = !mouse.clicked;
             });
+            $('#fullscreen').click(function(event) {
+                requestFullscreen(canvas);
+                resize();
+                
+            });
+            document.addEventListener('mozfullscreenchange', fullscreenChange);
         });
 
+        var fullscreenChange = function() {
+            if(document.mozFullScreen || document.webkitIsFullScreen) {
+                var rect = canvas.getBoundingClientRect();
+                var canvasL = $(canvas);
+                canvasL.width(rect.width);
+                canvasL.height(rect.height);
+                canvasL.attr('width', rect.width);
+                canvasL.attr('height', rect.height);
+                canvasWidth = canvasL.width();
+                canvasHeight = canvasL.height();
+            }
+            else {
+                resize();
+            }
+        }
+
+        var requestFullscreen = function (elem) {
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } 
+            else if (elem.msRequestFullscreen) {
+                elem.msRequestFullscreen();
+            } 
+            else if (elem.mozRequestFullScreen) {
+                elem.mozRequestFullScreen();
+            } 
+            else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            }
+        };
+
+        var isFullscreen;
         $scope.pickedColor = [];
         var drawSceneDummy = function() {};
         var CONSTANTS = {
@@ -169,13 +213,18 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
         function resize() {
             var canvas = $('#hw1-canvas');
             var parentWidth = canvas.parent().width();
-            canvasWidth = parentWidth;
-            canvasHeight = parentWidth;
             canvas.width(parentWidth);
-            canvas.attr('width', parentWidth);
             canvas.height(parentWidth);
+            canvas.attr('width', parentWidth);
             canvas.attr('height', parentWidth);
-
+            canvasWidth = canvas.width();
+            canvasHeight = canvas.height();
+            var fullscreen = $("#fullscreen");
+            fullscreen.css('top', 3 - canvas.height());
+            fullscreen.css('left', canvas.width() - fullscreen.width() - 3 - 26);
+            if (gl !== undefined && gl !== null) {
+                initPickingBuffer();
+            }
         }
 
         /**
@@ -314,19 +363,22 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
          * buffer the data in the file object.
          */
         function bufferFileObj(file) {
-            setObjColorId(file.obj);
-            file.obj.vertices.buffer = gl.createBuffer();
-            file.obj.normals.buffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, file.obj.vertices.buffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(file.obj.vertices), gl.STATIC_DRAW);
-            gl.bindBuffer(gl.ARRAY_BUFFER, file.obj.normals.buffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(file.obj.normals), gl.STATIC_DRAW);
-            file.obj.faces.buffer = gl.createBuffer();
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, file.obj.faces.buffer);
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(file.obj.faces), gl.STATIC_DRAW);
-            file.obj.lineFaces.buffer = gl.createBuffer();
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, file.obj.lineFaces.buffer);
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(file.obj.lineFaces), gl.STATIC_DRAW);
+            if (!file.buffered) {
+                setObjColorId(file.obj);
+                file.obj.vertices.buffer = gl.createBuffer();
+                file.obj.normals.buffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, file.obj.vertices.buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(file.obj.vertices), gl.STATIC_DRAW);
+                gl.bindBuffer(gl.ARRAY_BUFFER, file.obj.normals.buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(file.obj.normals), gl.STATIC_DRAW);
+                file.obj.faces.buffer = gl.createBuffer();
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, file.obj.faces.buffer);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(file.obj.faces), gl.STATIC_DRAW);
+                file.obj.lineFaces.buffer = gl.createBuffer();
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, file.obj.lineFaces.buffer);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(file.obj.lineFaces), gl.STATIC_DRAW);
+                file.buffered = true;
+            }
         }
 
         /**
@@ -378,7 +430,7 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
                     mat4.perspective(
                         pMatrix,
                         view.fovy,
-                        view.ratio,
+                        gl.drawingBufferWidth / gl.drawingBufferHeight,
                         view.near,
                         view.far
                     );
