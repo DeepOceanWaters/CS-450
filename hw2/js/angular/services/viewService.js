@@ -105,12 +105,12 @@ viewService.service('viewService', ['$rootScope',
         var toOrthoObj = function(view) {
             return {
                 viewType:view.name,
-                left:view.params[0].value,
-                right:view.params[1].value,
-                bottom:view.params[2].value,
-                top:view.params[3].value,
-                near:view.params[4].value,
-                far:view.params[5].value
+                left:parseFloat(view.params[0].value),
+                right:parseFloat(view.params[1].value),
+                bottom:parseFloat(view.params[2].value),
+                top:parseFloat(view.params[3].value),
+                near:parseFloat(view.params[4].value),
+                far:parseFloat(view.params[5].value)
             }
         }
 
@@ -121,9 +121,9 @@ viewService.service('viewService', ['$rootScope',
             return {
                 viewType:view.name,
                 fovy:toRadian(view.params[0].value),
-                ratio:view.params[1].value,
-                near:view.params[2].value,
-                far:view.params[3].value
+                ratio:parseFloat(view.params[1].value),
+                near:parseFloat(view.params[2].value),
+                far:parseFloat(view.params[3].value)
             }
         }
 

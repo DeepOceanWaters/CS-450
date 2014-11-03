@@ -1,6 +1,7 @@
 body {
 	padding-top: 35px;
-	background-image: url("../images/escheresque_ste.png");
+	/*background-image: url("../images/escheresque_ste.png");*/
+	background-image: url("../images/tools.jpg");
 }
 
 .panel-body {
@@ -105,10 +106,12 @@ body {
 }
 
 .c-input-group > .c-input-pair.c-vertical:last-child > .c-input-wrapper .c-input {
+	border-right: 1px solid #C1C1C1;
 	border-radius: 0px 0px 4px 0px;
 }
 
 .c-input-group > .c-input-pair.c-vertical:last-child > .c-input-addon {
+	border-right: 1px solid #C1C1C1;
 	border-radius: 0px 4px 0px 0px;
 }
 
