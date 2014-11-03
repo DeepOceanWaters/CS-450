@@ -37,6 +37,16 @@ body {
     vertical-align: middle;
 }
 
+.clear {
+	clear: both;
+}
+
+#fullscreen {
+	float: left;
+	position: relative;
+	margin-bottom: -50px;
+}
+
 .c-input-group > .c-input-wrapper:last-child .c-input {
 	border-radius: 0px 4px 4px 0px;
 	border-right: 1px solid #C1C1C1
