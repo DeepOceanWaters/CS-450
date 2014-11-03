@@ -410,7 +410,7 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
                 bufferFileObj(files[i]);
             }
 
-            gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+            gl.viewport(0, 0, canvasWidth, canvasHeight);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
             setView();
@@ -425,23 +425,39 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
 
         function setView() {
             var view = viewService.getSelectedViewForWebGL();
+            var canvasRatio = canvasWidth / canvasHeight;
             switch(view.viewType) {
                 case 'Perspective':
                     mat4.perspective(
                         pMatrix,
                         view.fovy,
-                        gl.drawingBufferWidth / gl.drawingBufferHeight,
+                        view.ratio * canvasRatio,
                         view.near,
                         view.far
                     );
                     break;
                 case 'Orthographic':
+                    // If the ratio 
+                    var orthoHeight = Math.abs(view.top - view.bottom);
+                    var orthoWidth = Math.abs(view.left - view.right);
+                    var orthoRatio = orthoWidth / orthoHeight;
+                    var deviation = Math.abs(canvasRatio - orthoRatio) / 2;
+                    var heightDev;
+                    var widthDev;
+                    if (orthoRatio > canvasRatio) {
+                        heightDev = orthoWidth * deviation;
+                        widthDev = 0.0;
+                    }
+                    else {
+                        heightDev = 0.0;
+                        widthDev = orthoHeight * deviation;
+                    }
                     mat4.ortho(
                         pMatrix,
-                        view.left,
-                        view.right,
-                        view.bottom,
-                        view.top,
+                        view.left - widthDev,
+                        view.right + widthDev,
+                        view.bottom - heightDev,
+                        view.top + heightDev,
                         view.near,
                         view.far
                     );
