@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>CS 450: HW2</title>
+	<title>CS 450: HW3</title>
 
 	<link rel="stylesheet" type="text/css" href="css/bootstrap.css"/>
 	<link rel="stylesheet" type="text/css" href="css/cs450-hw.css"/>
@@ -10,9 +10,9 @@
   	<script type="text/javascript" src="js/gl-matrix-min.js"></script>
   	<script type="text/javascript" src="js/webgl-utils.js"></script>
     <script type="text/javascript" src="js/angular.js"></script>
-	  <script type="text/javascript" src="js/angular/services/viewService.js"></script>
+	<script type="text/javascript" src="js/angular/services/viewService.js"></script>
     <script type="text/javascript" src="js/angular/services/fileService.js"></script>
-	  <script type="text/javascript" src="js/angular/controllers/viewCtrl.js"></script>
+	<script type="text/javascript" src="js/angular/controllers/viewCtrl.js"></script>
     <script type="text/javascript" src="js/angular/controllers/fileCtrl.js"></script>
     <script type="text/javascript" src="js/angular/controllers/canvasCtrl.js"></script>
     <script type="text/javascript" src="js/angular/app.js"></script>
@@ -29,9 +29,8 @@
   	<script id="shader-vs" type="x-shader/x-vertex">
         attribute  vec3 vPosition;
         attribute  vec3 vNormal;
-        //attribute  vec4 vColor;
 
-		    varying vec4 color;
+		varying vec4 color;
         uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
         uniform mat4 ModelView;
         uniform mat4 Projection;
@@ -43,8 +42,8 @@
 
         void main()
         {
-			      vec4 position = vec4(vPosition, 1.0);
-			      vec4 normal = vec4(vNormal, 0.0);
+			vec4 position = vec4(vPosition, 1.0);
+			vec4 normal = vec4(vNormal, 0.0);
             // Transform vertex  position into eye coordinates
             vec3 pos = (ModelView * position).xyz;
             vec3 L = normalize( (ModelView * LightPosition).xyz - pos );
@@ -89,7 +88,7 @@
 		<div class="col-md-5">
 			<div class="panel panel-default" ng-controller="CanvasCtrl">
 			  	<div class="panel-heading">
-			    	<h3 class="panel-title">CS 450: Homework 2</h3>
+			    	<h3 class="panel-title">CS 450: Homework 3</h3>
 			  	</div>
 			  	<div class="panel-body">
 			    	<canvas id="hw1-canvas" class="canvas"></canvas>
