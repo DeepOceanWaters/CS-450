@@ -6,14 +6,16 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
         $scope.$on('selectedFilesChange', drawSceneDummy);
         $scope.$on('updateView', drawSceneDummy);
         var mouse = {
-                x:0,
-                y:0,
-                clicked:false
+                x: 0,
+                y: 0,
+                clicked: false,
+                isDown: false,
+                down: { x:0, y:0 }
             };
 
         $(document).ready(function(){
             webGLStart();
-            
+            document.oncontextmenu = function() {return false;};
             $(window).resize(function() {
                 resize();
             });
@@ -31,15 +33,43 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             $('#hw1-canvas').click(function(event) {
                 mouse.clicked = !mouse.clicked;
             });
+            // We just have to 
+            $('#hw1-canvas').mousedown(mouseChange);
+            $('#hw1-canvas').mouseup(mouseChange);
             $('#fullscreen').click(function(event) {
                 requestFullscreen(canvas);
-                //resize();
-                
             });
             document.addEventListener('fullscreenchange', fullscreenChange);
             document.addEventListener('mozfullscreenchange', fullscreenChange);
-            document.addEventListener('webkitfullscreenchange', fullscreenChange);
+            document.addEventListener('webkitfullscreenchange', fullscreenChange);           
         });
+        
+        var context;
+
+        function mouseChange(event) {
+            switch (event.which) {
+            case 1: // Left Mouse Button
+            case 3: // Right Mouse Button
+                mouse.isDown = !mouse.isDown;
+                break;
+            case 2: // Middle Mouse Button
+                break;
+            
+            default:
+                alert('You have a strange Mouse!');
+            }
+            if (mouse.isDown) {
+                if (document.mozFullScreen || document.webkitIsFullScreen) {
+                    mouse.down.x = event.pageX;
+                    mouse.down.y = canvasHeight - event.pageY;
+                }
+                else {
+                    var parentOffset = $(this).parent().offset();
+                    mouse.down.x = Math.round(event.pageX - parentOffset.left);
+                    mouse.down.y = $(this).attr('height') - Math.round(event.pageY - parentOffset.top);
+                }
+            }
+        }
 
         var fullscreenChange = function() {
             if(document.mozFullScreen || document.webkitIsFullScreen) {
@@ -91,6 +121,7 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             SN_OFF_SCREEN:"OffScreen",
             SN_PICKING_COLOR:"PickingColor",
             SN_PICKED:"Picked",
+            SN_EYE_POSITION:"EyePosition",
             UNUSED_COLOR_ID:new Uint8Array([0, 0, 0, 255])
         };
 
@@ -109,6 +140,13 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             specular:[1.0, 0.8, 0.0, 1.0],
             shininess:100.0
         };
+
+        var AXES = {
+        };
+
+        var selectedObject;
+        
+        
 
         var gl;
         var shaderProgram;
@@ -308,6 +346,7 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             shaderProgram.offScreen = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_OFF_SCREEN);
             shaderProgram.pickingColor = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_PICKING_COLOR);
             shaderProgram.picked = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_PICKED);
+            shaderProgram.eyePosition = gl.getUniformLocation(shaderProgram, CONSTANTS.SN_EYE_POSITION);
         }
 
         /**
@@ -365,6 +404,7 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             gl.uniform1i(shaderProgram.offScreen, offScreen);
             gl.uniform4fv(shaderProgram.pickingColor, currentColor);
             gl.uniform1i(shaderProgram.picked, picked);
+            gl.uniform3fv(shaderProgram.eyePosition, lookAt.eye);
         }
 
         /**
@@ -400,19 +440,36 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
                 draw();
                 gl.readPixels(mouse.x, mouse.y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, colorPicked);
                 offScreen = false;
+                var files = fileService.getSelectedFiles();
+                selectedObject = null;
+                for(var i = 0; i < files.length; i++) {
+                    if (colorsAreEqual(files[i].obj.colorIdUint, colorPicked)) {
+                        selectedObject = files[i].obj;
+                        break;
+                    }
+                }
             }
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
             draw();
             if (mouse.clicked) {
                 mouse.clicked = !mouse.clicked;
-                colorPicked[0] = 0;
-                colorPicked[1] = 0;
-                colorPicked[2] = 0;
-                colorPicked[3] = 255;
+                //colorPicked[0] = 0;
+                //colorPicked[1] = 0;
+                //colorPicked[2] = 0;
+                //colorPicked[3] = 255;
             }
             requestAnimationFrame(drawScene);
         }
 
+        var mvMatrixDef = {
+            rotation:mat4.create(),
+            transform:mat4.create(),
+            scale:mat4.create(),
+            direction:{ x: [0.0, 1.0, 0.0], y: [1.0, 0.0, 0.0], x: [0.0, 0.0, 1.0]}
+        };
+        mat4.identity(mvMatrixDef.rotation);
+        mat4.identity(mvMatrixDef.transform);
+        mat4.identity(mvMatrixDef.scale);
         function draw() {
             var files = fileService.getSelectedFiles();
             for(var i = 0; i < files.length; i++) {
@@ -422,14 +479,153 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             gl.viewport(0, 0, canvasWidth, canvasHeight);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-            setView();
-            mat4.identity(mvMatrix);
-            var lookAt = viewService.getLookAtForWebGL();
-            mat4.lookAt(mvMatrix, lookAt.eye, lookAt.at, lookAt.up);
+            
+            if(mouse.isDown) {
+                var deltaX = mouse.down.x - mouse.x;
+                var deltaY = mouse.down.y - mouse.y;
+                
+                theta += deltaX * multiplier;
+                theta = theta % (Math.PI * 2);
+                phi += deltaY * multiplier;
+                phi = phi % (Math.PI);
 
+                mat4.identity(mvMatrix);
+                customLookAt(mvMatrix, lookAt.eye, lookAt.at, lookAt.up, false);
+                mat4.translate(mvMatrix, mvMatrix, [-lookAt.eye[0], -lookAt.eye[1], -lookAt.eye[2]]);
+                mat4.rotate(mvMatrixDef.rotation, mvMatrixDef.rotation, viewService.toRadian(deltaX / 2), laUp);
+                mat4.rotate(mvMatrixDef.rotation, mvMatrixDef.rotation, viewService.toRadian(deltaY / 2), laRight);
+                mat4.multiply(mvMatrix, mvMatrix, mvMatrixDef.rotation);
+                
+                mouse.down.x = mouse.x;
+                mouse.down.y = mouse.y;
+            }
+            
+            setView();
+            
             for(var i = 0; i < files.length; i++) {
                 drawFileObj(files[i].obj);
             }
+            drawAxes();
+        }
+
+        var laUp = [0, 1, 0];
+        var laRight;
+        function customLookAt(out, eye, at, upCustom, translate) {
+            var f;
+            var up = upCustom;
+            var s = vec3.create();
+            var u = vec3.create();
+
+            f = [
+                at[0] - eye[0],
+                at[1] - eye[1],
+                at[2] - eye[2]
+            ];
+
+            normalize(f);
+            normalize(up);
+            vec3.cross(s, f, up);
+            normalize(s);
+            vec3.cross(u, s, f);
+            normalize(u);
+            mat4.identity(out);
+            laUp = vec3.clone(u);
+            laRight = vec3.clone(s);
+            var m = [
+                 s[0],    u[0],   -f[0],    0,
+                 s[1],    u[1],   -f[1],    0,
+                 s[2],    u[2],   -f[2],    0,
+                    0,       0,       0,    1
+            ];
+            //mat4.transpose(m, m);
+            mat4.multiply(out, m, out);
+            if(translate) {
+                mat4.translate(out, out, [-eye[0], -eye[1], -eye[2]]);
+            }
+            //var newOut = mat4.create();
+            //mat4.copy(newOut, out);
+            //console.log(out);
+            //mat4.identity(out);
+            //mat4.lookAt(mvMatrix, eye, at, upCustom);
+            //console.log([newOut, mvMatrix]);
+        }
+
+        function normalize(vec) {
+            var size = Math.sqrt(sum(vec));
+            for(var i = 0; i < vec.length; i++) {
+                vec[i] = vec[i] / size;
+            }
+        }
+
+        function sum(vec) {
+            var sum = 0;
+            for(var i = 0; i < vec.length; i++) {
+                sum += square(vec[i]);
+            }
+            return sum;
+        }
+
+        var xzMult = 1;
+
+        function sub(vec1, vec2) {
+            return [vec1[0] - vec2[0], vec1[1] - vec2[1], vec1[2] - vec2[2]];
+        }
+
+        function radi(vec) {
+            return Math.sqrt(square(vec[0]) + square(vec[1]) + square(vec[2]));
+        }
+
+        function square(num) {
+            return num * num;
+        }
+
+        function flipped(x, newX) {
+            return (x * newX < 0);
+        }
+
+        var prevEye = [0, 0, 0];
+        var multiplier = 0.01;
+        var theta = 0;
+        var phi = 0;
+
+        var lookAt;
+        var eye = [0, 0, 0];
+        var orbit = [0, 0, 0];
+        var eyeRotation = quat.create();
+        var orbitRotation = quat.create();
+        var eyeMatrix = mat4.create();
+        var orbitMatrix = mat4.create();
+        function changeOrbitYaw(amount){
+            try {
+            var rotYaw = quat.create();
+            
+            quat.setAxisAngle(rotYaw, lookAt.up, amount);
+            quat.multiply(orbitRotation, rotYaw, orbitRotation);
+            quat.normalize(orbitRotation, orbitRotation);
+            
+            this.orbitYaw += amount;
+            }catch(e) {
+                alert('yaw!');
+            }
+        };
+        
+        function changeOrbitPitch(amount){
+            try {
+            quat.rotateX(orbitRotation, orbitRotation, amount);
+            quat.normalize(orbitRotation, orbitRotation);
+            }catch(e) {
+                alert('pitch!');
+            }
+        };
+
+        function getRightVec(lookAt) {
+            var forward = vec3.create();
+            forward[0] = lookAt.at.x - lookAt.eye.x;
+            forward[1] = lookAt.at.y - lookAt.eye.y;
+            forward[2] = lookAt.at.z - lookAt.eye.z;
+            vec3.normalize(forward, forward);
+            return right;
+
         }
 
         function setView() {
@@ -488,16 +684,23 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             var mode = gl.TRIANGLES;
             var elementBuffer = fileObj.faces.buffer;
             var sizeOfFaces = fileObj.faces.length;
+            /*
             if(colorsAreEqual(fileObj.colorIdUint, colorPicked) && !offScreen) {
-                fileObj.isSelected = !fileObj.isSelected;
-            }
-            if(fileObj.isSelected && !offScreen) {
+
+                drawAxes();
+                mode = gl.LINES;
+                elementBuffer = fileObj.lineFaces.buffer;
+                sizeOfFaces = fileObj.lineFaces.length;
+                picked = true;
+            }*/
+
+            if(fileObj == selectedObject && !offScreen) {
+                
                 mode = gl.LINES;
                 elementBuffer = fileObj.lineFaces.buffer;
                 sizeOfFaces = fileObj.lineFaces.length;
                 picked = true;
             }
-
             gl.bindBuffer(gl.ARRAY_BUFFER, fileObj.vertices.buffer);
             gl.vertexAttribPointer(shaderProgram.vPositionAttr, 3, gl.FLOAT, false, 0, 0);
 
@@ -511,6 +714,40 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             picked = false;
 
             mvPopMatrix();
+        }
+
+        function drawAxes() {
+            var curAxis;
+            var tempColor = currentColor;
+            picked = true;
+            for(var i = 0; i < 3; i++) {
+                switch(i) {
+                case 0:
+                    curAxis = AXES.X;
+                    break;
+                case 1:
+                    curAxis = AXES.Y;
+                    break;
+                case 2:
+                    curAxis = AXES.Z;
+                    break;
+                default:
+                    // bad
+                    break;
+                }
+                currentColor = new Float32Array(curAxis.color);
+                gl.bindBuffer(gl.ARRAY_BUFFER, curAxis.vertices.buffer);
+                gl.vertexAttribPointer(shaderProgram.vPositionAttr, 3, gl.FLOAT, false, 0, 0);
+    
+                gl.bindBuffer(gl.ARRAY_BUFFER, curAxis.normals.buffer);
+                gl.vertexAttribPointer(shaderProgram.vNormalsAttr, 3, gl.FLOAT, false, 0, 0);
+    
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, curAxis.faces.buffer);
+                setMatrixUniforms();
+                gl.drawElements(curAxis.mode, curAxis.faces.length, gl.UNSIGNED_SHORT, 0);
+            }
+            currentColor = tempColor;
+            picked = false;
         }
 
         /**
@@ -527,7 +764,58 @@ canvasCtrl.controller('CanvasCtrl', ['$scope', '$http', 'fileService', 'viewServ
             initPickingBuffer();
             gl.clearColor(0.7, 0.7, 0.7, 1.0);
             gl.enable(gl.DEPTH_TEST);
+            AXES.X = createAxis('x');
+            AXES.Y = createAxis('y');
+            AXES.Z = createAxis('z');
+            mat4.identity(mvMatrix);
+            lookAt = viewService.getLookAtForWebGL();
+            eye = lookAt.eye;
+            mat4.lookAt(mvMatrix, lookAt.eye, lookAt.at, lookAt.up);
             drawScene();
+        }
+
+        function createAxis(axisType) {
+            var x = 0.0;
+            var y = 0.0;
+            var z = 0.0;
+            var axisColor;
+            if (axisType == 'x') {
+                axisColor = [1.0, 0.0, 0.0, 1.0];
+                x = 1.0;
+            }
+            else if (axisType == 'y') {
+                axisColor = [0.0, 1.0, 0.0, 1.0];
+                y = 1.0;
+            }
+            else {
+                axisColor = [0.0, 0.0, 1.0, 1.0];
+                z = 1.0;
+            }
+
+            var axis = {
+                faces: [ 0, 1 ],
+                vertices: [
+                    0.0, 0.0, 0.0,
+                      x,   y,   z
+                ],
+                normals: [
+                    0.0, 0.0, 0.0,
+                      x,   y,   z
+                ],
+                color:axisColor,
+                mode:gl.LINES
+            };
+            setObjColorId(axis);
+            axis.faces.buffer = gl.createBuffer();
+            axis.vertices.buffer = gl.createBuffer();
+            axis.normals.buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, axis.vertices.buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(axis.vertices), gl.STATIC_DRAW);
+            gl.bindBuffer(gl.ARRAY_BUFFER, axis.normals.buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(axis.normals), gl.STATIC_DRAW);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, axis.faces.buffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(axis.faces), gl.STATIC_DRAW);
+            return axis;
         }
     }
 ]);

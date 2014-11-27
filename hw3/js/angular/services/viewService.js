@@ -35,9 +35,9 @@ viewService.service('viewService', ['$rootScope',
         lookAt.params.push({
             name:"Eye",
             axes:[
-                { name:"x", value:0.0 },
-                { name:"y", value:0.0 },
-                { name:"z", value:2.0 }
+                { name:"x", value:1.5 },
+                { name:"y", value:1.5 },
+                { name:"z", value:1.5 }
             ]
         });
 
@@ -178,7 +178,8 @@ viewService.service('viewService', ['$rootScope',
             getViews: getViews,
             getLookAt: getLookAt,
             getLookAtForWebGL: getLookAtForWebGL,
-            updateWebGL: updateWebGL
+            updateWebGL: updateWebGL,
+            toRadian: toRadian
         }
     }
 ]);
