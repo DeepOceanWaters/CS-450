@@ -11,12 +11,12 @@ viewService.service('viewService', ['$rootScope',
             { name:"Orthographic",
               isSelected: false,
               params:[
-                  { name:"left",   value:-1.0 },
-                  { name:"right",  value:1.0 },
-                  { name:"bottom", value:-1.0 },
-                  { name:"top",    value:1.0 },
-                  { name:"near",   value:0.1 },
-                  { name:"far",    value:15.0 }
+                  { name:"left",   value:-5.0 },
+                  { name:"right",  value: 5.0 },
+                  { name:"bottom", value:-5.0 },
+                  { name:"top",    value: 5.0 },
+                  { name:"near",   value: 0.01 },
+                  { name:"far",    value: 100.0 }
               ]},
            {  name:"Perspective",
               isSelected: true,
@@ -35,9 +35,9 @@ viewService.service('viewService', ['$rootScope',
         lookAt.params.push({
             name:"Eye",
             axes:[
-                { name:"x", value:1.5 },
-                { name:"y", value:1.5 },
-                { name:"z", value:1.5 }
+                { name:"x", value:5},
+                { name:"y", value:0},
+                { name:"z", value:0}
             ]
         });
 
@@ -83,14 +83,18 @@ viewService.service('viewService', ['$rootScope',
          * Gets the selected view, but creates a new object
          * that is easier to read when used for WebGL.
          */
-        var getSelectedViewForWebGL = function() {
+        var getSelectedViewForWebGL = function(selectView) {
             var viewForWebGL;
-            switch(selectedView.name) {
+            var selectViewName = selectedView.name;
+            if (selectView !== undefined && selectView !== null) {
+                selectViewName = selectView;
+            }
+            switch(selectViewName) {
                 case 'Perspective':
-                    viewForWebGL = toPerspectiveObj(selectedView);
+                    viewForWebGL = toPerspectiveObj(views[1]);
                     break;
                 case 'Orthographic':
-                    viewForWebGL = toOrthoObj(selectedView);
+                    viewForWebGL = toOrthoObj(views[0]);
                     break;
                 default:
                     viewForWebGL = {};

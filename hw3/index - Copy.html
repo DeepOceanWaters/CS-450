@@ -7,11 +7,8 @@
 	<link rel="stylesheet" type="text/css" href="css/cs450-hw.css"/>
     <script type="text/javascript" src="js/jquery.js"></script>
   	<script type="text/javascript" src="js/bootstrap.js"></script>
-  	<script type="text/javascript" src="js/gl-matrix.js"></script>
+  	<script type="text/javascript" src="js/gl-matrix-min.js"></script>
   	<script type="text/javascript" src="js/webgl-utils.js"></script>
-    <script type="text/javascript" src="js/webgl-debug.js"></script>
-
-    <script type="text/javascript" src="js/scene.js"></script>
     <script type="text/javascript" src="js/angular.js"></script>
 	<script type="text/javascript" src="js/angular/services/viewService.js"></script>
     <script type="text/javascript" src="js/angular/services/fileService.js"></script>
@@ -19,125 +16,8 @@
     <script type="text/javascript" src="js/angular/controllers/fileCtrl.js"></script>
     <script type="text/javascript" src="js/angular/controllers/canvasCtrl.js"></script>
     <script type="text/javascript" src="js/angular/app.js"></script>
-
-  	<script id="0-shader-fs" type="x-shader/x-fragment">
+  	<script id="shader-fs" type="x-shader/x-fragment">
      	precision mediump float;
-
-        varying vec4 shadowCoord;
-        varying vec4 color;
-
-        uniform bool RenderingZBuffer;
-        uniform sampler2D ShadowMap;
-        
-
-        vec4 pack_float(float value)
-        {
-            const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-            const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-            vec4 res = fract(value * bit_shift);
-            res -= res.xxyz * bit_mask;
-            return res;
-        }
-
-        float unpack_float(vec4 rgba_value)
-        {
-            const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-            float value = dot(rgba_value, bit_shift);
-            return value;
-        }
-
-     	void main(void) {
-            if (!RenderingZBuffer) {
-                float visibility = 1.0;
-                vec4 newColor = color;
-                vec4 texColor = texture2D(ShadowMap, vec2(shadowCoord.s, shadowCoord.t));
-                float z = unpack_float(texColor);
-                if(z < shadowCoord.z - 0.005) {
-                    newColor *= 0.2;
-                }
-                newColor.a = 1.0;
-                gl_FragColor = newColor;
-            }
-            else {
-                gl_FragColor = pack_float(shadowCoord.z);
-            }
-      	}
-
-        
-  	</script>
-
-  	<script id="0-shader-vs" type="x-shader/x-vertex">
-        attribute  vec3 vPosition;
-        attribute  vec3 vNormal;
-
-		varying vec4 color;
-        varying vec4 shadowCoord;
-
-        uniform mat4 CameraProjection;
-        uniform mat4 CameraView;
-        uniform mat4 Model;
-        uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
-        uniform vec4 LightPosition;
-        uniform float Shininess;
-        uniform mat4 LightView;
-        uniform mat4 LightProjection;
-        uniform sampler2D ShadowMap;
-        uniform bool RenderingZBuffer;
-
-        void main()
-        {
-            vec4 position = vec4(vPosition, 1.0);
-            vec4 normal = vec4(vNormal, 0.0);
-            mat4 depthBias =  mat4(
-                0.5, 0.0, 0.0, 0.0,
-                0.0, 0.5, 0.0, 0.0,
-                0.0, 0.0, 0.5, 0.0,
-                0.5, 0.5, 0.5, 1.0
-            );
-
-            if (!RenderingZBuffer) {
-                // Transform vertex  position into eye coordinates
-                mat4 modelView = CameraView * Model;
-                vec3 pos = (modelView * position).xyz;
-                vec3 L = normalize( (modelView * LightPosition).xyz - pos );
-                vec3 E = normalize( -pos );
-                vec3 H = normalize( L + E );  //halfway vector
-    
-                // Transform vertex normal into eye coordinates
-                vec3 N = normalize( modelView * normal ).xyz;
-    
-                //To correctly transform normals
-                //vec3 N = (normalize(transpose(inverse(ModelView))*normal).xyz
-    
-                // Compute terms in the illumination equation
-                vec4 ambient = AmbientProduct;
-    
-                float dr = max( dot(L, N), 0.0 );
-                vec4  diffuse = dr * DiffuseProduct;
-    
-                float sr = pow( max(dot(N, H), 0.0), Shininess );
-                vec4  specular = sr * SpecularProduct;
-    
-                if( dot(L, N) < 0.0 ) {
-        	         specular = vec4(0.0, 0.0, 0.0, 1.0);
-                }
-                color = ambient + diffuse + specular;
-                color.a = 1.0;
-                shadowCoord =  depthBias * LightProjection * LightView * position;
-                position = CameraProjection * CameraView * position;
-                gl_Position = position;
-            }
-            else {
-                shadowCoord =  depthBias * LightProjection * LightView * Model * position;
-                position = LightProjection * LightView * Model * position;
-                gl_Position = position;
-                color = vec4(0.7, 0.5, 0.6, 1.0);
-            }
-            
-        }
-  	</script>
-    <script id="shader-fs" type="x-shader/x-fragment">
-        precision mediump float;
 
         varying float steps;
         varying float pass_Value;
@@ -147,7 +27,7 @@
         varying vec4 pickingColor;
         varying vec4 position;
         varying vec4 shadowCoord;
-        varying vec4 color;
+     	varying vec4 color;
         uniform vec2 TexSize;
 
         vec3 hueToRGB(float h)
@@ -190,7 +70,7 @@
             return !(color1.r != color2.r || color1.g != color2.g || color1.b != color2.b);
         }
 
-        void main(void) {
+     	void main(void) {
             if (!OffScreen) {
                 float visibility = 1.0;
                 vec4 newColor = color;
@@ -225,16 +105,16 @@
             else {
                 gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
             }*/
-        }
+      	}
 
         
-    </script>
+  	</script>
 
-    <script id="shader-vs" type="x-shader/x-vertex">
+  	<script id="shader-vs" type="x-shader/x-vertex">
         attribute  vec3 vPosition;
         attribute  vec3 vNormal;
 
-        varying vec4 color;
+		varying vec4 color;
         varying float eye_Value;
         varying float steps;
         varying float pass_Value;
@@ -290,7 +170,7 @@
                 vec4  specular = sr * SpecularProduct;
     
                 if( dot(L, N) < 0.0 ) {
-                     specular = vec4(0.0, 0.0, 0.0, 1.0);
+        	         specular = vec4(0.0, 0.0, 0.0, 1.0);
                 }/*
                 if (OffScreen || Picked) {
                     color = PickingColor;
@@ -334,7 +214,7 @@
             }
             
         }
-    </script>
+  	</script>
 </head>
 <body ng-app="myapp">
 <div class="container-fluid">
@@ -343,10 +223,10 @@
 		<div class="col-md-5">
 			<div class="panel panel-default" ng-controller="CanvasCtrl">
 			  	<div class="panel-heading">
-			    	<h3 class="panel-title">CS 450: Homework 6</h3>
+			    	<h3 class="panel-title">CS 450: Homework 3|| {{ colorPicked[0] }} {{ colorPicked[1] }} {{ colorPicked[2] }}</h3>
 			  	</div>
 			  	<div class="panel-body">
-			    	<canvas id="main-canvas" class="canvas"></canvas>
+			    	<canvas id="hw1-canvas" class="canvas"></canvas>
             <button id="fullscreen" type="button" class="btn btn-default"><span class="glyphicon glyphicon-fullscreen"></span></button>
             <div class="clear"></div>
 			  	</div>

@@ -4,6 +4,7 @@ fileService.service('fileService', ['$rootScope',
     function($rootScope) {
         var files = new Array();
         var selectedFiles = new Array();
+        var modelIdSequence = 0;
 
         var getFiles = function() {
             return files;
@@ -25,7 +26,7 @@ fileService.service('fileService', ['$rootScope',
             else {
                 deselectFile(file);
             }
-            $rootScope.$broadcast('selectedFilesChange', []);
+            $rootScope.$broadcast('selectedFilesChange', [files]);
         }
 
         var selectFile = function(file) {
@@ -51,10 +52,16 @@ fileService.service('fileService', ['$rootScope',
         var getFileObj = function(file) {
             var fileObj = {
                 numVertices:0,
+                modelId: modelIdSequence,
+                active: false,
                 vertices:[],
                 normals:[],
-                faces:[]
+                faces:[],
+                translation: mat4.create(),
+                rotation: mat4.create(),
+                scale: mat4.create()
             };
+            modelIdSequence += 1;
             for(var i = 0; i < file.f.length; i++) {
                 var face = file.f[i];
                 for(var j = 0; j < 3; j++) {
@@ -68,6 +75,8 @@ fileService.service('fileService', ['$rootScope',
             fileObj.numVertices = file.f.length;
             fileObj.vertices = flatten(file.v);
             fileObj.normals = flatten(file.vn);
+            mat4.identity(fileObj.rotation);
+            mat4.identity(fileObj.scale);
             return fileObj;
         }
 
@@ -108,7 +117,7 @@ fileService.service('fileService', ['$rootScope',
             file.name = fileDesc.name;
             file.isSelected = false;
             files.push(file);
-            $rootScope.$broadcast('updateFiles', []);
+            $rootScope.$broadcast('updateFiles', [file]);
         }
 
         var processData = function(fileData) {
@@ -159,10 +168,25 @@ fileService.service('fileService', ['$rootScope',
                 break;
             case  'f': // face
                 var faces = new Array();
-                faces.push(processFaceLine(lineElements[1]));
-                faces.push(processFaceLine(lineElements[2]));
-                faces.push(processFaceLine(lineElements[3]));
-                file.f.push(faces);
+                if (lineElements.length == 5) {
+                    faces.push(processFaceLine(lineElements[2]));
+                    faces.push(processFaceLine(lineElements[3]));
+                    faces.push(processFaceLine(lineElements[1]));
+                    file.f.push(faces);
+                
+                    var extraFaces = new Array();
+                    extraFaces.push(processFaceLine(lineElements[3]));
+                    extraFaces.push(processFaceLine(lineElements[1]));
+                    extraFaces.push(processFaceLine(lineElements[4]));
+                    file.f.push(extraFaces);
+                }
+                else {
+                    faces.push(processFaceLine(lineElements[1]));
+                    faces.push(processFaceLine(lineElements[2]));
+                    faces.push(processFaceLine(lineElements[3]));
+                    file.f.push(faces);
+                }
+                
                 break;
             default: // whatevs?
                 break;
